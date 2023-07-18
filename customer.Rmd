@@ -1,0 +1,297 @@
+---
+title: '**Clustering for Mall Customer data**'
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+header-includes:
+- \usepackage{float}
+- \floatplacement{figure}{H}
+- \usepackage{bm}
+- \usepackage{longtable}
+- \usepackage{booktabs}
+- \usepackage{caption}
+- \captionsetup[figure]{font=scriptsize}
+- \captionsetup[table]{font=scriptsize}
+vignette: |
+  %\VignetteEngine{knitr::rmarkdown} %\VignetteIndexEntry{Foo}
+urlcolor: blue
+geometry: left=1cm,right=1cm,top=1cm,bottom=0.8cm
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(xtable.comment=FALSE)
+```
+
+ The Mall customers data set (https://www.kaggle.com/datasets/kandij/mall-customers) contains some basic data about your customers like Customer ID, age, gender, annual income and spending score. In this project, we try to cluster the customers based on the basic data. 
+ 
+ 
+
+```{r echo=FALSE, message=FALSE}
+customer_data =  read.csv("Mall_Customers.csv")
+customer_data = na.omit(customer_data)
+names(customer_data) = c("CustomerID", "Gender", "Age", "Annual_Income", "Spending_Score") 
+customer_data=customer_data[,-1]
+customer <- within(customer_data, {
+  Gender_lab<- factor(Gender, labels  = 1:2, levels = c("Male","Female"))
+})
+customer=customer[,-1]
+attach(customer)
+```
+
+- Summary Statistics
+
+```{r echo=FALSE,results='asis'}
+library(xtable)
+xtable(summary(customer[,-4]),caption = "Summary Statistics",digits = 2)
+```
+ - Matrix scatterplot and Correlation matrix
+
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,fig.align="center",out.width = "70%",fig.cap="Matrix scatterplot"}
+library(PerformanceAnalytics)
+chart.Correlation(customer[,-4], histogram = TRUE,)
+#str(customer)
+``` 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,fig.align="center",out.width = "70%",fig.cap="Box Plots"}
+
+features <- colnames(customer)[-4]
+
+par(mfrow = c(1, 3))  # Set the layout of the subplots
+
+for (i in 1:length(features)) {
+  feature <- features[i]
+  boxplot(customer[,feature] ~ Gender_lab, data = customer, main = feature, xlab = 'Gender', ylab = feature)
+}
+```
+
+```{r echo=FALSE,results='asis'}
+df=cor(customer[,-4])
+xtable(df, caption = "Correlation matrix")
+``` 
+
+- As the correlation between most of the variables are very low, therefore, rather than going with the correlation-based distance, we can use metric-based distance for clustering.
+- Also I would suggest standardizing the variables as they are in different scales and some have very high ranges.
+- There is not much variation of the variables when the Gender is condisered.
+
+**Hierarchical Clustering with Complete linkage**
+
+```{r, echo=FALSE,fig.align="center",out.width="60%",fig.cap="Hierarchical Clustering with Complete linkage"}
+customer.sc <- scale(customer[,-4])
+customer.complete <- hclust(dist(customer.sc), method = "complete")
+plot(customer.complete, xlab = "", sub = "", 
+	cex = 0.7)
+abline(h=4
+       ,col="red")##cut the tree
+```
+```{r, echo=FALSE, results='asis'}
+clust<-cutree(customer.complete, 3)
+t<-table(clust)
+xtable(t(t), caption = "Number of observations within each cluster (Hierarchical Clustering)")
+customer.new<-cbind(customer[,-4],clust)
+c1<-apply(customer.new[clust==1,],2,mean)
+c2<-apply(customer.new[clust==2,],2,mean)
+c3<-apply(customer.new[clust==3,],2,mean)
+d<-as.data.frame(rbind(c1,c2,c3))
+row.names(d)<-c("Cluster 1","Cluster 2","Cluster 3")
+xtable(d,caption = "Cluster means of the variables (Hierarchical Clustering)",table.placement="H",digits = 3)
+```
+
+```{r,echo=FALSE,fig.align="center",warning=FALSE,fig.cap="Matrix scatter plots"}
+# Plot data
+customer_sub=customer.new[,-4]
+par(oma=c(4,1,1,1))
+plot(customer.new[,-4],upper.panel=NULL,cex.main=0.8,col = c("red","blue","green")[customer.new$clust],pch=c(1,1,1)[customer.new$clust])
+
+par(fig=c(0,1,0,1),oma=c(0,0,0,0),mar=c(0,0,0,0),new=TRUE)
+plot(0,0,type="n",bty="n",xaxt="n",yaxt="n")
+
+
+legend("top", legend=c("Cluster 1", "Cluster 2","Cluster 3"), 
+       col = c("red","blue","green") ,pch=1,xpd = TRUE, horiz = TRUE,cex = 0.7)
+par(mar=c(5.1,4.1,4.1,2.1))
+
+```
+
+```{r, echo=FALSE, results='asis'}
+clust<-cutree(customer.complete, 4)
+t<-table(clust)
+xtable(t(t), caption = "Number of observations within each cluster (Hierarchical Clustering)")
+customer.new<-cbind(customer[,-4],clust)
+c1<-apply(customer.new[clust==1,],2,mean)
+c2<-apply(customer.new[clust==2,],2,mean)
+c3<-apply(customer.new[clust==3,],2,mean)
+c4<-apply(customer.new[clust==4,],2,mean)
+d<-as.data.frame(rbind(c1,c2,c3,c4))
+row.names(d)<-c("Cluster 1","Cluster 2","Cluster 3","Cluster 4")
+xtable(d,caption = "Cluster means of the variables (Hierarchical Clustering)",table.placement="H",digits = 3)
+```
+
+```{r,echo=FALSE,fig.align="center",warning=FALSE,fig.cap="Matrix scatter plots"}
+# Plot data
+customer_sub=customer.new[,-4]
+par(oma=c(4,1,1,1))
+plot(customer.new[,-4],upper.panel=NULL,cex.main=0.8,col = c("red","blue","green","yellow")[customer.new$clust],pch=c(1,1,1,1)[customer.new$clust])
+
+par(fig=c(0,1,0,1),oma=c(0,0,0,0),mar=c(0,0,0,0),new=TRUE)
+plot(0,0,type="n",bty="n",xaxt="n",yaxt="n")
+
+
+legend("top", legend=c("Cluster 1", "Cluster 2","Cluster 3","Cluster 4"), 
+       col = c("red","blue","green","yellow") ,pch=1,xpd = TRUE, horiz = TRUE,cex = 0.7)
+par(mar=c(5.1,4.1,4.1,2.1))
+
+```
+
+**K-means clustering with k = 3**
+
+ 
+
+```{r, echo=FALSE,results='asis'}
+set.seed(100)
+km.out <- kmeans(customer.sc, 3, nstart = 20)
+t1<-table(km.out$cluster)
+xtable(t(t1), caption = "Number of observations within each cluster (k=3)")
+customer.new<-cbind(customer,clust)
+k1<-apply(customer_sub[km.out$cluster==1,],2,mean)
+k2<-apply(customer_sub[km.out$cluster==2,],2,mean)
+k3<-apply(customer_sub[km.out$cluster==3,],2,mean)
+
+d<-as.data.frame(rbind(k1,k2,k3))
+row.names(d)<-c("Cluster 1","Cluster 2","Cluster 3")
+xtable(d,caption = "Cluster means of the variables for k-means clustering (k=3)",table.placement="H",digits = 3)
+kclust<-km.out$cluster
+customer.new<-cbind(customer.new,kclust)
+```
+```{r,echo=FALSE,fig.align="center",warning=FALSE,fig.cap="Matrix scatter plots",out.width="80%"}
+# Plot data
+par(oma=c(4,1,1,1))
+plot(customer_sub,upper.panel=NULL,cex.main=0.8,col = c("red","blue","green")[customer.new$kclust],pch=c(1,1,1)[customer.new$kclust])
+
+par(fig=c(0,1,0,1),oma=c(0,0,0,0),mar=c(0,0,0,0),new=TRUE)
+plot(0,0,type="n",bty="n",xaxt="n",yaxt="n")
+
+
+legend("top", legend=c("Cluster 1","Cluster 2","Cluster 3"), 
+       col = c("red","blue","green") ,pch=1,xpd = TRUE, horiz = TRUE,cex = 0.7)
+par(mar=c(5.1,4.1,4.1,2.1))
+
+```
+
+- Age is a good variable to cluster the data into 3 clusters.
+
+ **K-means clustering with k = 4**
+
+```{r, echo=FALSE,results='asis'}
+set.seed(100)
+km.out <- kmeans(customer.sc, 4, nstart = 20)
+t1<-table(km.out$cluster)
+xtable(t(t1), caption = "Number of observations within each cluster (k=4)")
+customer.new<-cbind(customer,km.out$cluster)
+k1<-apply(customer_sub[km.out$cluster==1,],2,mean)
+k2<-apply(customer_sub[km.out$cluster==2,],2,mean)
+k3<-apply(customer_sub[km.out$cluster==3,],2,mean)
+k4<-apply(customer_sub[km.out$cluster==4,],2,mean)
+d<-as.data.frame(rbind(k1,k2,k3,k4))
+row.names(d)<-c("Cluster 1","Cluster 2","Cluster 3","Cluster 4")
+xtable(d,caption = "Cluster means of the variables for k-means clustering (k=4)",table.placement="H",digits = 3)
+```
+
+```{r,echo=FALSE,fig.align="center",warning=FALSE,fig.cap="Matrix scatter plots"}
+kclust<-km.out$cluster
+customer.new<-cbind(customer.new,kclust)
+# Plot data
+par(oma=c(4,1,1,1))
+
+plot(customer_sub,upper.panel=NULL,cex.main=0.8,col = c("red","blue","green","yellow")[customer.new$kclust],pch=c(1,1,1,1)[customer.new$kclust])
+
+# legend("top", col = mycols, legend = levels(d$Group1), pch = 20, 
+#        xpd = NA, ncol = 3, bty = "n", inset = 0.01, pt.cex = 1.5)
+
+par(fig=c(0,1,0,1),oma=c(0,0,0,0),mar=c(0,0,0,0),new=TRUE)
+plot(0,0,type="n",bty="n",xaxt="n",yaxt="n")
+
+legend("top", legend=c("Cluster 1","Cluster 2","Cluster 3","Cluster 4"), 
+       col = c("red","blue","green","yellow") ,pch=1,xpd = TRUE, horiz = TRUE,cex = 0.7)
+par(mar=c(5.1,4.1,4.1,2.1))
+```
+
+**K-means clustering with k = 5**
+
+```{r, echo=FALSE,results='asis'}
+set.seed(100)
+km.out <- kmeans(customer.sc, 5, nstart = 20)
+t1<-table(km.out$cluster)
+xtable(t(t1), caption = "Number of observations within each cluster (k=4)")
+customer.new<-cbind(customer,km.out$cluster)
+k1<-apply(customer_sub[km.out$cluster==1,],2,mean)
+k2<-apply(customer_sub[km.out$cluster==2,],2,mean)
+k3<-apply(customer_sub[km.out$cluster==3,],2,mean)
+k4<-apply(customer_sub[km.out$cluster==4,],2,mean)
+k5<-apply(customer_sub[km.out$cluster==5,],2,mean)
+d<-as.data.frame(rbind(k1,k2,k3,k4,k5))
+row.names(d)<-c("Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5")
+xtable(d,caption = "Cluster means of the variables for k-means clustering (k=5)",table.placement="H",digits = 3)
+```
+
+```{r,echo=FALSE,fig.align="center",warning=FALSE,fig.cap="Matrix scatter plots"}
+kclust<-km.out$cluster
+customer.new<-cbind(customer.new,kclust)
+# Plot data
+par(oma=c(4,1,1,1))
+plot(customer_sub,upper.panel=NULL,cex.main=0.8,col = c("red","blue","green","yellow","orange")[customer.new$kclust],pch=c(1,1,1,1,1)[customer.new$kclust])
+
+par(fig=c(0,1,0,1),oma=c(0,0,0,0),mar=c(0,0,0,0),new=TRUE)
+plot(0,0,type="n",bty="n",xaxt="n",yaxt="n")
+
+
+legend("top", legend=c("Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5"), 
+       col = c("red","blue","green","yellow","orange") ,pch=1,xpd = TRUE, horiz = TRUE,cex = 0.7)
+par(mar=c(5.1,4.1,4.1,2.1))
+```
+**K-means clustering with k = 6**
+
+```{r, echo=FALSE,results='asis'}
+set.seed(100)
+km.out <- kmeans(customer.sc, 6, nstart = 20)
+t1<-table(km.out$cluster)
+xtable(t(t1), caption = "Number of observations within each cluster (k=4)")
+customer.new<-cbind(customer,km.out$cluster)
+k1<-apply(customer_sub[km.out$cluster==1,],2,mean)
+k2<-apply(customer_sub[km.out$cluster==2,],2,mean)
+k3<-apply(customer_sub[km.out$cluster==3,],2,mean)
+k4<-apply(customer_sub[km.out$cluster==4,],2,mean)
+k5<-apply(customer_sub[km.out$cluster==5,],2,mean)
+k6<-apply(customer_sub[km.out$cluster==6,],2,mean)
+d<-as.data.frame(rbind(k1,k2,k3,k4,k5,k6))
+row.names(d)<-c("Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5","Cluster 6")
+xtable(d,caption = "Cluster means of the variables for k-means clustering (k=6)",table.placement="H",digits = 3)
+```
+
+```{r,echo=FALSE,fig.align="center",warning=FALSE,fig.cap="Matrix scatter plots"}
+kclust<-km.out$cluster
+customer.new<-cbind(customer.new,kclust)
+# Plot data
+par(oma=c(4,1,1,1))
+plot(customer_sub,upper.panel=NULL,cex.main=0.8,col = c("red","blue","green","yellow","orange","purple")[customer.new$kclust],pch=c(1,1,1,1,1,1)[customer.new$kclust])
+
+par(fig=c(0,1,0,1),oma=c(0,0,0,0),mar=c(0,0,0,0),new=TRUE)
+plot(0,0,type="n",bty="n",xaxt="n",yaxt="n")
+
+
+legend("top", legend=c("Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5", "Cluster 5"), 
+       col = c("red","blue","green","yellow","orange","purple") ,pch=1,xpd = TRUE, horiz = TRUE,cex = 0.7)
+par(mar=c(5.1,4.1,4.1,2.1))
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE,message=FALSE,fig.cap="Plot of number of clusters vs total within cluster sum of squares", fig.align='center', out.width="80%"}
+library(factoextra)
+
+#create plot of number of clusters vs total within sum of squares
+fviz_nbclust(customer_sub, kmeans, method = "wss")
+```
